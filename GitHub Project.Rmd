@@ -1,0 +1,198 @@
+---
+title: "IMDB Project"
+author: "Clarissa Lee"
+date: "2023-06-22"
+output: html_document
+---
+
+```{r}
+# load libraries (quietly stops all the messages appearing)
+library(readr, quietly = TRUE)
+library(dplyr, quietly = TRUE)
+install.packages("DT")
+library(DT, quietly = TRUE)
+
+# load imdb and bechdel
+movies_imdb <- read_csv("https://raw.githubusercontent.com/andrewmoles2/rTrainIntroduction/main/r-data-wrangling-1/data/IMDb%20movies.csv")
+
+bechdel <- read_csv("https://raw.githubusercontent.com/andrewmoles2/rTrainIntroduction/main/r-data-wrangling-1/data/raw_bechdel.csv")
+
+# fix imdb id key
+movies_imdb$imdb_title_id <- parse_number(movies_imdb$imdb_title_id)
+
+# join data (left join)
+imdb_bechdel <- left_join(x = movies_imdb, y = bechdel,
+                          by = c("imdb_title_id" = "imdb_id", "year", "title"))
+
+# review the data
+imdb_bechdel %>%
+  glimpse()
+
+# just looking at Alfred Hitchcock movies in this example
+imdb_bechdel %>%
+  filter(grepl("Alfred Hitchcock", director)) %>%
+  datatable()
+
+View(imdb_bechdel)
+```
+
+```{r}
+library(ggplot2)
+library(tidyr)
+library(ggtext)
+
+imdb_bechdel %>%
+  filter(grepl("Alfred Hitchcock", director)) %>%
+  mutate(rating_string = case_when(
+    rating == 0 ~ "bechdel rating 0",
+    rating == 1 ~ "bechdel rating 1",
+    rating == 2 ~ "bechdel rating 2",
+    rating == 3 ~ "bechdel rating 3"
+  )) %>%
+  drop_na(rating) -> hitchcock
+
+h_avg_vote <- mean(hitchcock$avg_vote)
+
+hitchcock %>%
+  ggplot(aes(x = year, y = avg_vote, colour = factor(rating_string))) +
+  geom_point() +
+  geom_line() +
+  geom_hline(yintercept = h_avg_vote, linetype = 2, colour = "grey75") +
+  facet_wrap(vars(rating_string), nrow = 2) +
+  guides(colour = "none") + 
+  labs(title = "Alfred Hitchcock films IMDB and bechdel rating",
+       caption = "Bechdel Rule is a simple test which names the following three criteria: 
+       (1) it has to have at least two women in it, who 
+       (2) who talk to each other, about 
+       (3) something besides a man",
+       x = "Year film released",
+       y = "Average IMDB rating") +
+  scale_colour_manual(values = c('#ef2d56','#ed7d3a','#dced31','#0cce6b')) +
+  scale_y_continuous(limits = c(4, 10)) +
+  theme_minimal(base_family = "Avenir") +
+  theme(strip.background = element_blank(),
+        strip.text = element_textbox(size = 12, colour = "white", fill = "#5D729D", box.colour = "#4A618C",
+                                     halign = 0.5, linetype = 1, r = unit(5, "pt"), width = unit(1, "npc"),
+                                     padding = margin(2,0,1,0), margin = margin(3,3,3,3)),
+        plot.caption = element_text(hjust = 0),
+        plot.title.position = "plot")
+```
+
+```{r}
+
+History_movies <- movies_imdb %>%  
+  filter(grepl("History", genre)) %>%  
+  filter(year >= 1970) %>%  
+  filter(grepl("Japan", country))
+
+History_movies %>%  
+  ggplot(aes(x = year, y = avg_vote)) +  
+  geom_point() 
+
+History_movies %>%  
+  group_by(year) %>%
+  summarise(Average_Vote_Per_Year = round(mean(avg_vote), digits = 2)) %>%  
+  mutate(year_colour = case_when(    
+    year < 1980 & year >=1970 ~ "#50b99b",    
+    year < 1990 & year >=1980 ~ "#ffd400",    
+    year < 2000 & year >=1990 ~ "#f9b16e",    
+    year < 2010 & year >=2000 ~ "#c5d86d",    
+    year <=2020 & year >=2010 ~ "#73b7b8" 
+  )) %>%
+  mutate(year_cat = case_when(    
+    year < 1980 & year >=1970 ~ "1970-1980",    
+    year < 1990 & year >=1980 ~ "1980-1990",    
+    year < 2000 & year >=1990 ~ "1990-2000",    
+    year < 2010 & year >=2000 ~ "2000-2010",    
+    year <=2020 & year >=2010 ~ "2010-2020" 
+  ))-> Average_Vote_Per_Year
+  
+Average_Vote_Per_Year
+
+Japanese_History_Ratings1 <- Average_Vote_Per_Year %>%  
+  ggplot(aes(x = year, y = Average_Vote_Per_Year, colour = year_colour, group = year_colour)) +  
+  geom_point() +  
+  geom_path() +  
+  labs(title = "Japanese History Film Ratings from 1970-2020", 
+       x = "Year",       
+       y = "Average Vote Per Year") +  
+  theme_minimal(base_family = "Helvetica", 
+                base_size = 10) + 
+  theme(plot.title = element_text(hjust = 0.5, face = "bold")) +
+  facet_wrap(vars(year_cat), nrow = 4) +
+  scale_color_identity()
+
+Japanese_History_Ratings1
+
+ggsave(filename = "japanese_history_ratings1.png", Japanese_History_Ratings1,
+       units = "px", width = 3000, height = 2750, bg = "white")
+
+```
+```{r}
+History_movies <- movies_imdb %>%  
+  filter(grepl("History", genre)) %>%  
+  filter(year >= 1970) %>%  
+  filter(grepl("Japan", country))
+
+View(History_movies)
+
+History_movies %>%  
+  ggplot(aes(x = year, y = avg_vote)) +  
+  geom_point() 
+
+History_movies %>%  
+  group_by(year) %>%
+  summarise(Average_Vote_Per_Year = round(mean(avg_vote), digits = 2)) %>%  
+  mutate(year_colour = case_when(    
+    year < 1980 & year >=1970 ~ "#8093f1",    
+    year < 1990 & year >=1980 ~ "#b388eb",    
+    year < 2000 & year >=1990 ~ "#f7aef8",    
+    year < 2010 & year >=2000 ~ "#ff7096",    
+    year <=2020 & year >=2010 ~ "#ff99ac" 
+  ))-> Average_Vote_Per_Year
+  
+Average_Vote_Per_Year
+
+Japanese_History_Ratings <- Average_Vote_Per_Year %>%  
+  ggplot(aes(x = year, y = Average_Vote_Per_Year, colour = year_colour, group = year_colour)) +  
+  geom_point() +  
+  geom_path() +  
+  labs(title = "Japanese History Film Ratings from 1970-2020", 
+       x = "Year",       
+       y = "Average Vote Per Year") +  
+  theme_minimal(base_family = "Helvetica", 
+                base_size = 10) + 
+  theme(plot.title = element_text(hjust = 0.5, face = "bold")) +
+  scale_color_identity()
+
+Japanese_History_Ratings
+
+ggsave(filename = "japanese_history_ratings.png", Japanese_History_Ratings,
+       units = "px", width = 3000, height = 2750, bg = "white")
+
+```
+
+
+```{r}
+
+Japanese_History_Ratings_Gradient <- Average_Vote_Per_Year %>%  
+  ggplot(aes(x = year, y = Average_Vote_Per_Year, colour = year)) +  
+  geom_point() +  
+  geom_path() +  
+  labs(title = "Japanese History Film Ratings from 1970-2020", 
+       x = "Year",       
+       y = "Average Vote Per Year") +  
+  scale_colour_gradient(low = "#4091c9", high = "#9dcee2", space = "Lab", na.value = "grey50", guide = "colourbar", aesthetics = "colour") +
+  theme_minimal(base_family = "Helvetica", 
+                base_size = 10) + 
+  theme(plot.title = element_text(hjust = 0.5, face = "bold"))
+  
+
+Japanese_History_Ratings_Gradient
+
+ggsave(filename = "japanese_history_ratings_gradient.png", Japanese_History_Ratings_Gradient,
+       units = "px", width = 3000, height = 2750, bg = "white")
+
+```
+
+
